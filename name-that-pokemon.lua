@@ -248,7 +248,8 @@ local function convertAndWriteToMemory()
     end
 
     for line in inputFile:lines() do
-        if line ~= name then
+        if line ~= name and line:match("%S") then
+            -- Check if the line is not equal to the current name and not empty or contains only whitespace
             local success = newInputFile:write(line .. "\n")
             if not success then
                 print("Error: Failed to write to output file.")
