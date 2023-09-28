@@ -278,58 +278,21 @@ function convertAndWriteToMemory()
     reRun()
 end
 
--- Run & ReRun work as separate loops to handle recursion, but combining them broke the script
--- Using both these means as soon as you load your game back up after closing the emulator, the next name will get burned
-
-function Run()
+function Run(reRunMode)
     local loopRun = true
-		while loopRun do
-            local memCheck = memory.readbyte(startAddress)
-            emu.frameadvance()
-			if memCheck > 0 then
-				loopRun = false
-                convertAndWriteToMemory()
-            end
-		end
-	-- Final garbage collection prior to game loops beginning
-    collectgarbage()
-end
-
-function reRun()
-    local loopReRun = true
-		while loopReRun do
-            local memCheck = memory.readbyte(startAddress)
-            emu.frameadvance()
-			if memCheck == 0 then -- Means there's no mon / been a reset
-				loopReRun = false
-                Run()
-            end
-		end
-	-- Final garbage collection prior to game loops beginning
-    collectgarbage()
-end
-
-
-Run()
-
-
-
--- This loop doesn't work without recursion
--- function Run(reRunMode)
---    local loopRun = true
---    while loopRun do
---        local memCheck = memory.readbyte(startAddress)
---        emu.frameadvance()
---        if (reRunMode and memCheck == 0) or (not reRunMode and memCheck > 0) then
---            loopRun = false
---            convertAndWriteToMemory()
---        end
---    end
+    while loopRun do
+        local memCheck = memory.readbyte(startAddress)
+        emu.frameadvance()
+        if (reRunMode and memCheck == 0) or (not reRunMode and memCheck > 0) then
+            loopRun = false
+            convertAndWriteToMemory()
+        end
+   end
     -- Final garbage collection prior to loops beginning, might be unnecessary but loops scare me
---    collectgarbage()
---end
+   collectgarbage()
+end
 
 -- Initial run
---Run(false)
+Run(false)
 -- Re-run
---Run(true)
+Run(true)
