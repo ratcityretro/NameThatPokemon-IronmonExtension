@@ -178,69 +178,80 @@ local characterToMemory = {
     ['$'] = 0xFF,
 }
 
--- Constants for startAddress for US version of FRLG, memory offset for pokémon nicknames, and path to filename
-local START_ADDRESS = 0x02024284
-local OFFSET = 8
+local startAddress = 0x02024284
+local offset = 8
 -- Change either to whatever hard path you want to use
-local FILENAME = "names.txt" 
-local TEMP_FILENAME = "names_temp.txt"
+local filename = "names.txt" 
+local tempFilename = "names_temp.txt"
 
--- Primary function to convert and write a name to memory addresses from the names file
+-- Function to map characters in a UTF-8 string because io.open by itself didn't work
+local function mapUTF8StringAndOutput(inputString)
+    local mappedNames = {}
+    
+    for _, char in utf8.codes(inputString) do
+        local mappedValue = characterToMemory[utf8.char(char)] or 0xFF -- Default to 0xFF if character not found
+        table.insert(mappedNames, mappedValue)
+    end
+    
+    -- Ensure the mapped values are no longer than 10 characters
+    if #mappedNames > 10 then
+        mappedNames = {table.unpack(mappedNames, 1, 10)}
+    end
+
+    -- Pad shorter names with 0xFF so the game knows where the name ends
+    while #mappedNames < 10 do
+        table.insert(mappedNames, 0xFF)
+    end
+    
+    return mappedNames
+end
+
+-- Function to read the first line from the file, map the characters, and write to memory addresses
 local function convertAndWriteToMemory()
     -- Set memory domain (this is a "just in case" the user is running other scripts changing the domain, will remove when this becomes an extension)
     memory.usememorydomain("System Bus")
     
     -- Attempt to open the input file
-    local inputFile = io.open(FILENAME, "r")
+    local inputFile = io.open(filename, "r")
 
     if not inputFile then
         print("Error: Unable to open name file.")
         return
     end
 
+    -- Read the first line from the file
     local name = inputFile:read()
 
-  -- Ensure the name is no longer than 10 characters
-  if name == nil then
-    print("Error: Name file is empty.")
-    inputFile:close()
-    return
-    elseif #name > 10 then
-    -- Trim to 10 characters if longer
-    name = name:sub(1, 10)
-    elseif #name < 10 then
-    -- Calculate how many bytes are needed for padding
-    local paddingLength = 10 - #name
-    -- Pad with 0xFF followed by 0x00 bytes
-    -- Pokémon nicknames always end with 0xFF and then empty bytes
-    name = name .. string.char(0xFF) .. string.rep(string.char(0x00), paddingLength - 1)
+    if not name then
+        print("Error: Empty file or unable to read the first line.")
+        inputFile:close()
+        return
     end
-    
-    local address = START_ADDRESS + OFFSET
 
-    -- Attempt to write to memory
-    for i = 1, #name do
-        local char = name:sub(i, i)
-        local memoryValue = characterToMemory[char] or 0xFF  -- Default the character to 0xFF if character not found
+    -- Map the characters and get the mapped values
+    local mappedNames = mapUTF8StringAndOutput(name)
 
-        local success = memory.writebyte(address,memoryValue)
+    local address = 0x0202428C -- FRLG US memory address where nicknames start
+
+    -- Attempt to write the mapped values to memory
+    for _, value in ipairs(mappedNames) do
+        local success = memory.writebyte(address, value)
         
         local reader = memory.readbyte(address)
 
-        if reader ~= memoryValue then
+        if reader ~= value then
             print("Error: Failed to write to memory.")
-            inputFile:close()
             return
         end
 
         -- Increment the address by 1 for each byte
         address = address + 1
     end
-
     -- Attempt to write to the temp file
     -- This is because I'm bad at Lua and everything happens so fast so we need a temp file that has the remaining names
     -- This creates a race condition where a name comes in right as you are getting a new mon
-    local newInputFile = assert(io.open(TEMP_FILENAME, "w"))
+ 
+    local newInputFile = assert(io.open(tempFilename, "w"))
 
     if not newInputFile then
         print("Error: Unable to open input file for writing.")
@@ -249,7 +260,7 @@ local function convertAndWriteToMemory()
 
     for line in inputFile:lines() do
         if line ~= name and line:match("%S") then
-            -- Check if the line is not equal to the current name and not empty or contains only whitespace
+            -- Sequential dupe remover and checks for empty/blanks
             local success = newInputFile:write(line .. "\n")
             if not success then
                 print("Error: Failed to write to output file.")
@@ -260,16 +271,16 @@ local function convertAndWriteToMemory()
     end
     inputFile:close()
     newInputFile:close()
-    print("The name has been recorded to the pokemon.")
-    os.remove(FILENAME)
-    os.rename(TEMP_FILENAME,FILENAME)
-    reRun()
+    print("The name has been recorded to the Pokémon.")
+    os.remove(filename)
+    os.rename(tempFilename,filename)
 end
+
 
 function Run(reRunMode)
     local loopRun = true
     while loopRun do
-        local memCheck = memory.readbyte(START_ADDRESS)
+        local memCheck = memory.readbyte(startAddress)
         emu.frameadvance()
         if (reRunMode and memCheck == 0) or (not reRunMode and memCheck > 0) then
             loopRun = false
@@ -284,4 +295,3 @@ end
 Run(false)
 -- Re-run
 Run(true)
-
