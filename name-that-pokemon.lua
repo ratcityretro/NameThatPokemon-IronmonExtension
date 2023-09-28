@@ -274,25 +274,27 @@ function convertAndWriteToMemory()
     print("The name has been recorded to the Pokémon.")
     os.remove(filename)
     os.rename(tempFilename,filename)
-    --
-    reRun()
+    
 end
 
-function Run(reRunMode)
+--ISSUE: If the memory check goes to zero for any reason (reset/reload/etc) the name will re-inject
+function Run()
     local loopRun = true
-    while loopRun do
+    while true do
         local memCheck = memory.readbyte(startAddress)
         emu.frameadvance()
-        if (reRunMode and memCheck == 0) or (not reRunMode and memCheck > 0) then
-            loopRun = false
-            convertAndWriteToMemory()
+        if memCheck > 0 then
+            if loopRun then
+                convertAndWriteToMemory()
+                loopRun = false
+            end
+        elseif memCheck == 0 then
+            loopRun = true
         end
-   end
-    -- Final garbage collection prior to loops beginning, might be unnecessary but loops scare me
-   collectgarbage()
+    end
 end
 
+
 -- Initial run
-Run(false)
--- Re-run
-Run(true)
+Run()
+
