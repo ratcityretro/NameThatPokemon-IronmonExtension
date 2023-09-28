@@ -5,9 +5,12 @@ A script that can be loaded into BizHawk's EmuHawk Lua console that will automat
 This is jank so bear with me:
 
 Download the script to your Lua folder for BizHawk
+
 Create a names.txt file in the same location
+
 Setup your Streamerbot with an action that will take the chatter's name and append the names.txt file
 ---Import this and it'll do that for you: https://pastebin.com/rx5HRLfB
+
 !ntp will record the name to the file. Sometimes blank lines will append in, but the script will clear those
 
 All cool scripts have warnings: 
