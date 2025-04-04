@@ -1,6 +1,6 @@
 local function CodeExtensionTemplate()
     local self = {}
-    self.version = "0.1.2"
+    self.version = "0.2"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"  -- Change to your username
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and provides an options dialog for editing."
