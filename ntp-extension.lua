@@ -235,8 +235,10 @@ local function NameThatPokemon()
         local versionResponsePattern = '"tag_name":%s+"%w+(%d+%.%d+)"'
         local downloadUrl = string.format("https://github.com/%s/releases/latest", self.github)
         local compareFunc = function(a, b) return a ~= b and not Utils.isNewerVersion(a, b) end
-        return Utils.checkForVersionUpdate(versionCheckUrl, self.version, versionResponsePattern, compareFunc), downloadUrl
+        local isUpdateAvailable = Utils.checkForVersionUpdate(versionCheckUrl, self.version, versionResponsePattern, compareFunc)
+        return isUpdateAvailable, downloadUrl
     end
+    
 
     function self.downloadAndInstallUpdate()
         local extensionFilenameKey = "NameThatPokemon"
