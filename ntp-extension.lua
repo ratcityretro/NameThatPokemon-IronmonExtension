@@ -1,6 +1,6 @@
 local function NameThatPokemon()
     local self = {}
-    self.version = "0.5"
+    self.version = "0.5.1"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and integrates chat commands and reward events."
