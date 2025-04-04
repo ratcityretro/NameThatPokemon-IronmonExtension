@@ -1,6 +1,6 @@
 local function NameThatPokemon()
     local self = {}
-    self.version = "0.5.2"
+    self.version = "0.5.3"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and integrates chat commands and reward events."
@@ -41,7 +41,7 @@ local function NameThatPokemon()
         return truncated
     end
 
-    local characterToMemory = { -- omitted for brevity, unchanged }
+    local characterToMemory = { -- full mapping here (same as before, unchanged) }
 
     local function mapUTF8StringAndOutput(inputString)
         local mapped = {}
@@ -61,7 +61,6 @@ local function NameThatPokemon()
     local function injectName()
         memory.usememorydomain("System Bus")
         Resources.NamesList = Resources.NamesList or {}
-
         if #Resources.NamesList == 0 then return end
 
         local entry = Resources.NamesList[1]
@@ -69,7 +68,7 @@ local function NameThatPokemon()
 
         local name = entry.name
         local mappedName = mapUTF8StringAndOutput(name)
-        local address = 0x0202428C  -- Nickname memory location (FRLG)
+        local address = 0x0202428C -- FRLG nickname memory address
 
         for _, byte in ipairs(mappedName) do
             memory.writebyte(address, byte)
@@ -130,7 +129,7 @@ local function NameThatPokemon()
             return self.tryAddName(this, request)
         end,
     })
-    self.RewardEvent.IsEnabled = false -- 🔧 Ensures [EXT] option appears
+    self.RewardEvent.IsEnabled = false
 
     self.CommandEvent = EventHandler.IEvent:new({
         Key = "CMD_NameThatPokemonAdd",
@@ -144,7 +143,7 @@ local function NameThatPokemon()
             return response
         end,
     })
-    self.CommandEvent.IsEnabled = false -- 🔧 Ensures [EXT] option appears
+    self.CommandEvent.IsEnabled = false
 
     function self.openPopup()
         local x, y, w, h, lineHeight = 20, 15, 600, 405, 20
@@ -246,3 +245,4 @@ local function NameThatPokemon()
 end
 
 return NameThatPokemon
+
