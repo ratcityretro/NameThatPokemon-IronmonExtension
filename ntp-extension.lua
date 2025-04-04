@@ -1,14 +1,15 @@
 local function CodeExtensionTemplate()
     local self = {}
+    -- Metadata for the extension, displayed in Tracker settings
     self.version = "0.3"
     self.name = "Name That Pokemon"
-    self.author = "ratcityretro"
+    self.author = "ratcityretro"  -- Change to your username
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and integrates chat commands and reward events."
     self.github = "ratcityretro/name-that-pokemon"  -- Adjust as needed
     self.url = string.format("https://github.com/%s", self.github or "")
 
     -- Register commands for the Streamer Settings panel.
-    -- These entries will make the !ntp chat command and the corresponding reward option appear (prefixed with [EXT])
+    -- These entries will cause the !ntp command and its reward to show up (prefixed with [EXT])
     self.chatCommands = {
         {
             command = "!ntp",
@@ -263,8 +264,7 @@ local function CodeExtensionTemplate()
     -- These functions allow the extension to respond to chat commands and reward events
     -- from the Tracker's chat connection.
     --------------------------------------
-    function self.CommandEvent(message)
-        -- Parse the incoming chat message (assumes a simple command format)
+    function self.CommandEvent(message, user)
         local cmd, args = message:match("^(%S+)%s*(.*)")
         if cmd and cmd:lower() == "!ntp" then
             print("!ntp command received via chat. Processing name conversion.")
@@ -273,11 +273,19 @@ local function CodeExtensionTemplate()
     end
 
     function self.RewardEvent(reward, user)
-        -- Check the reward text; if it matches criteria (e.g. contains "ntp"), process conversion.
         if reward and reward:lower():find("ntp") then
             print("Reward event triggered for user " .. (user or "unknown") .. ". Processing name conversion.")
             convertAndWriteToMemory()
         end
+    end
+
+    -- Additional chat integration hooks so the Tracker can call our functions:
+    function self.onChatMessage(message, user)
+        self.CommandEvent(message, user)
+    end
+
+    function self.onRewardReceived(reward, user)
+        self.RewardEvent(reward, user)
     end
 
     -- Check for updates (optional)
