@@ -1,10 +1,10 @@
 local function NameThatPokemon()
     local self = {}
-    self.version = "0.6"
+    self.version = "1.0"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and integrates chat commands and reward events."
-    self.github = "ratcityretro/name-that-pokemon"
+    self.github = "ratcityretro/NameThatPokemon-IronmonExtension"
     self.url = string.format("https://github.com/%s", self.github or "")
 
     local NAMES_FILENAME = "NamesList.json"
