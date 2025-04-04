@@ -1,6 +1,6 @@
 local function CodeExtensionTemplate()
     local self = {}
-    self.version = "0.1"
+    self.version = "0.1.1"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"  -- Change to your username
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and provides an options dialog for editing."
@@ -26,7 +26,7 @@ local function CodeExtensionTemplate()
 
     function self.getNamesFromFile()
         local filepath = self.getFilepathForNames()
-        if not filepath then
+        if not filepath or not FileManager.fileExists(filepath) then
             return {}
         end
         return FileManager.decodeJsonFile(filepath) or {}
@@ -39,9 +39,6 @@ local function CodeExtensionTemplate()
         end
         FileManager.encodeToJsonFile(filepath, names or {})
     end
-
-    -- For restoring default entries via the Options dialog
-    self.DefaultNames = {}
 
     --------------------------------------
     -- Character Mapping Table (used to convert names)
@@ -108,7 +105,7 @@ local function CodeExtensionTemplate()
     --------------------------------------
     -- Conversion Function
     --
-    -- Reads the first entry from the JSON names list (stored in Resources.NamesList),
+    -- Reads the first entry from the JSON names list,
     -- converts the "name" field to memory values, writes those bytes to the designated memory address,
     -- and then removes that entry from the list.
     --------------------------------------
@@ -204,19 +201,19 @@ local function CodeExtensionTemplate()
         self.openPopup()
     end
 
-    -- On startup, load the JSON file into Resources.NamesList.
+    -- On startup, load (or create) the JSON file into Resources.NamesList.
     function self.startup()
         self.DefaultNames = {}
-        if Resources.NamesList then
-            FileManager.copyTable(Resources.NamesList, self.DefaultNames)
-        end
-
-        if FileManager.fileExists(self.getFilepathForNames()) then
+        local filepath = self.getFilepathForNames()
+        if not FileManager.fileExists(filepath) then
+            -- Create an empty names file if it doesn't exist
+            self.saveNamesToFile({})
+            Resources.NamesList = {}
+            print("Created new names file: " .. filepath)
+        else
             local names = self.getNamesFromFile()
             Resources.NamesList = {}
             FileManager.copyTable(names, Resources.NamesList)
-        else
-            Resources.NamesList = {}
         end
         loopRun = true
     end
