@@ -19,9 +19,20 @@
 -- Turn this into an extension of the tracker so that we can utilize things like "stillInLab" map data, "is game loaded" boolean, and memory addresses for non-US games
 
 
+
+local function NameThatPokemon()
+
+	local self = {
+		version = "0.9",
+		name = "NameThatPokemon",
+		author = "ratcityretro",
+		description = "Allows for commands or redemption events to populate a name list to name pokemon.",
+	}
+
 -- Define the mapping of characters to memory values, credit to the Tracker & PokeHack
 local characterToMemory = {
-    [' '] = 0x00,
+    [' '] = 0x00, -- Spaces in names will map to single blank character
+    ['_'] = 0x00, -- Underscores in names will map to single blank character
     ['À'] = 0x01,
     ['Á'] = 0x02,
     ['Â'] = 0x03,
@@ -178,14 +189,17 @@ local characterToMemory = {
     ['$'] = 0xFF,
 }
 
+
+
 local startAddress = 0x02024284
 local offset = 8
 -- Change either to whatever hard path you want to use
 local filename = "names.txt" 
 local tempFilename = "names_temp.txt"
+local delimiter = "||"
 
 -- Function to map characters in a UTF-8 string because io.open by itself didn't work
-local function mapUTF8StringAndOutput(inputString)
+function mapUTF8StringAndOutput(inputString)
     local mappedNames = {}
     
     for _, char in utf8.codes(inputString) do
@@ -206,7 +220,15 @@ local function mapUTF8StringAndOutput(inputString)
     return mappedNames
 end
 
--- Function to read the first line from the file, map the characters, and write to memory addresses
+-- Function to check if we are in the lab
+function self.isInLab()
+    local playingFRLG = GameSettings.game == 3 -- FRLG
+    local inLab = TrackerAPI.getMapId() == 5 -- ID for Oak's Lab
+    return playingFRLG and inLab
+end
+
+
+-- Function to read the first line from the file, extract the name part before the delimiter, map the characters, and write to memory addresses
 function convertAndWriteToMemory()
     -- Set memory domain (this is a "just in case" the user is running other scripts changing the domain, will remove when this becomes an extension)
     memory.usememorydomain("System Bus")
@@ -220,64 +242,86 @@ function convertAndWriteToMemory()
     end
 
     -- Read the first line from the file
-    local name = inputFile:read()
+    local line = inputFile:read()
 
-    if not name then
+    if not line then
         print("Error: Empty file or unable to read the first line.")
         inputFile:close()
         return
     end
 
-    -- Map the characters and get the mapped values
-    local mappedNames = mapUTF8StringAndOutput(name)
+    -- Extract the name part before the delimiter using the one-liner
+    -- local name = line:match("([^" .. delimiter .. "]+)" .. delimiter)
+    local name = line:match("([^" .. delimiter .. "]+)" .. delimiter) or line
 
-    local address = 0x0202428C -- FRLG US memory address where nicknames start
 
-    -- Attempt to write the mapped values to memory
-    for _, value in ipairs(mappedNames) do
-        local success = memory.writebyte(address, value)
+    if name then
+        -- Map the characters and get the mapped values
+        local mappedNames = mapUTF8StringAndOutput(name)
+
+        local address = 0x0202428C -- FRLG US memory address where nicknames start
+
+        -- Attempt to write the mapped values to memory
+        for _, value in ipairs(mappedNames) do
+            local success = memory.writebyte(address, value)
+            
+            local reader = memory.readbyte(address)
+
+            if reader ~= value then
+                print("Error: Failed to write to memory.")
+                return
+            end
+
+            -- Increment the address by 1 for each byte
+            address = address + 1
+        end
         
-        local reader = memory.readbyte(address)
+        -- Write the information after the delimiter to a file named "namer.txt" (overwrite)
+        local namerFile = io.open("namer.txt", "w")
 
-        if reader ~= value then
-            print("Error: Failed to write to memory.")
+        if not namerFile then
+            print("Error: Unable to open namer file for writing.")
+        else
+            local afterDelimiter = line:match(delimiter .. "(.*)")
+            if afterDelimiter then
+                namerFile:write(afterDelimiter .. "\n")
+            end
+            namerFile:close()
+        end
+
+        -- Clear the line from the input file
+        local newInputFile = assert(io.open(tempFilename, "w"))
+
+        if not newInputFile then
+            print("Error: Unable to open input file for writing.")
             return
         end
 
-        -- Increment the address by 1 for each byte
-        address = address + 1
-    end
-    -- Attempt to write to the temp file
-    -- This is because I'm bad at Lua and everything happens so fast so we need a temp file that has the remaining names
-    -- This creates a race condition where a name comes in right as you are getting a new mon
- 
-    local newInputFile = assert(io.open(tempFilename, "w"))
-
-    if not newInputFile then
-        print("Error: Unable to open input file for writing.")
-        return
-    end
-
-    for line in inputFile:lines() do
-        if line ~= name and line:match("%S") then
-            -- Sequential dupe remover and checks for empty/blanks
-            local success = newInputFile:write(line .. "\n")
-            if not success then
-                print("Error: Failed to write to output file.")
-                newInputFile:close()
-                return
+        for nextLine in inputFile:lines() do
+            if nextLine ~= line and nextLine:match("%S") then
+                -- Sequential dupe remover and checks for empty/blanks
+                local success = newInputFile:write(nextLine .. "\n")
+                if not success then
+                    print("Error: Failed to write to the output file.")
+                    newInputFile:close()
+                    return
+                end
             end
         end
+
+        inputFile:close()
+        newInputFile:close()
+        print("The name has been recorded to the Pokémon, and the rest of the line has been cleared.")
+        os.remove(filename)
+        os.rename(tempFilename, filename)
+    else
+        print("Error: Name not found in the input line.")
     end
-    inputFile:close()
-    newInputFile:close()
-    print("The name has been recorded to the Pokémon.")
-    os.remove(filename)
-    os.rename(tempFilename,filename)
-    
 end
 
---ISSUE: If the memory check goes to zero for any reason (reset/reload/etc) the name will re-inject
+
+
+
 function Run()
     local loopRun = true
     while true do
@@ -298,3 +342,5 @@ end
 -- Initial run
 Run()
 
+end
+return NameThatPokemon
