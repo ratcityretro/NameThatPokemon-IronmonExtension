@@ -1,6 +1,6 @@
 local function NameThatPokemon()
     local self = {}
-    self.version = "0.5.1"
+    self.version = "0.5.2"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and integrates chat commands and reward events."
@@ -41,7 +41,7 @@ local function NameThatPokemon()
         return truncated
     end
 
-    local characterToMemory = { -- unchanged table omitted here for brevity }
+    local characterToMemory = { -- omitted for brevity, unchanged }
 
     local function mapUTF8StringAndOutput(inputString)
         local mapped = {}
@@ -58,7 +58,6 @@ local function NameThatPokemon()
         return mapped
     end
 
-    -- 🧠 Core Injection Function
     local function injectName()
         memory.usememorydomain("System Bus")
         Resources.NamesList = Resources.NamesList or {}
@@ -70,7 +69,7 @@ local function NameThatPokemon()
 
         local name = entry.name
         local mappedName = mapUTF8StringAndOutput(name)
-        local address = 0x0202428C  -- Nickname memory location for FRLG (US)
+        local address = 0x0202428C  -- Nickname memory location (FRLG)
 
         for _, byte in ipairs(mappedName) do
             memory.writebyte(address, byte)
@@ -86,8 +85,7 @@ local function NameThatPokemon()
     local startAddress = 0x02024284
 
     function self.afterProgramDataUpdate()
-        Resources.NamesList = Resources.NamesList or {} -- Safe fallback
-
+        Resources.NamesList = Resources.NamesList or {}
         local memCheck = memory.readbyte(startAddress)
         if memCheck > 0 then
             if loopRun then
@@ -132,6 +130,7 @@ local function NameThatPokemon()
             return self.tryAddName(this, request)
         end,
     })
+    self.RewardEvent.IsEnabled = false -- 🔧 Ensures [EXT] option appears
 
     self.CommandEvent = EventHandler.IEvent:new({
         Key = "CMD_NameThatPokemonAdd",
@@ -145,6 +144,7 @@ local function NameThatPokemon()
             return response
         end,
     })
+    self.CommandEvent.IsEnabled = false -- 🔧 Ensures [EXT] option appears
 
     function self.openPopup()
         local x, y, w, h, lineHeight = 20, 15, 600, 405, 20
@@ -198,7 +198,6 @@ local function NameThatPokemon()
         self.openPopup()
     end
 
-    -- 🔧 Startup logic
     function self.startup()
         self.DefaultNames = {}
         Resources.NamesList = {}
@@ -229,7 +228,6 @@ local function NameThatPokemon()
         EventHandler.removeEvent(self.CommandEvent.Key)
     end
 
-    -- 🔄 Update check
     function self.checkForUpdates()
         local versionCheckUrl = string.format("https://api.github.com/repos/%s/releases/latest", self.github)
         local versionResponsePattern = '"tag_name":%s+"%w+(%d+%.%d+)"'
@@ -238,7 +236,6 @@ local function NameThatPokemon()
         local isUpdateAvailable = Utils.checkForVersionUpdate(versionCheckUrl, self.version, versionResponsePattern, compareFunc)
         return isUpdateAvailable, downloadUrl
     end
-    
 
     function self.downloadAndInstallUpdate()
         local extensionFilenameKey = "NameThatPokemon"
