@@ -1,64 +1,51 @@
-local function CodeExtensionTemplate()
+local function NameThatPokemon()
     local self = {}
     -- Metadata for the extension, displayed in Tracker settings
-    self.version = "0.3"
+    self.version = "0.4"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"  -- Change to your username
     self.description = "Reads a JSON names list, converts the first entry’s name to in-game memory, and integrates chat commands and reward events."
     self.github = "ratcityretro/name-that-pokemon"  -- Adjust as needed
     self.url = string.format("https://github.com/%s", self.github or "")
 
-    -- Register commands for the Streamer Settings panel.
-    -- These entries will cause the !ntp command and its reward to show up (prefixed with [EXT])
-    self.chatCommands = {
-        {
-            command = "!ntp",
-            description = "[EXT] Process next name for Name-that-Pokemon.",
-            enabled = true
-        }
-    }
-    self.rewardCommands = {
-        {
-            reward = "ntp",
-            description = "[EXT] Process next name for Name-that-Pokemon via reward redemption.",
-            enabled = true
-        }
-    }
-
-    --------------------------------------
-    -- Internal variables & constants
-    --------------------------------------
-    local loopRun = true
-    local startAddress = 0x02024284  -- Memory address used for checking game state
+    -- File settings
     local NAMES_FILENAME = "NamesList.json"
     local NEWLINE = "\r\n"
+    self.DefaultNames = {}
 
-    --------------------------------------
-    -- JSON File Management Functions
-    --------------------------------------
+    -- File management functions
     function self.getFilepathForNames()
         return FileManager.getCustomFolderPath() .. NAMES_FILENAME
     end
 
     function self.getNamesFromFile()
         local filepath = self.getFilepathForNames()
-        if not filepath or not FileManager.fileExists(filepath) then
-            return {}
-        end
+        if not filepath then return {} end
         return FileManager.decodeJsonFile(filepath) or {}
     end
 
     function self.saveNamesToFile(names)
         local filepath = self.getFilepathForNames()
-        if not filepath then
-            return
-        end
+        if not filepath then return end
         FileManager.encodeToJsonFile(filepath, names or {})
     end
 
-    --------------------------------------
-    -- Character Mapping Table (used to convert names)
-    --------------------------------------
+    -- Helper: Truncate a UTF-8 string to 10 characters
+    local function truncateTo10(input)
+        local truncated = ""
+        local count = 0
+        for _, code in utf8.codes(input) do
+            if count < 10 then
+                truncated = truncated .. utf8.char(code)
+                count = count + 1
+            else
+                break
+            end
+        end
+        return truncated
+    end
+
+    -- Character mapping table (for injection conversion)
     local characterToMemory = {
         [' '] = 0x00, ['_'] = 0x00,
         ['À'] = 0x01, ['Á'] = 0x02, ['Â'] = 0x03, ['Ç'] = 0x04,
@@ -104,70 +91,125 @@ local function CodeExtensionTemplate()
 
     -- Helper: Convert a UTF-8 string into a table of memory values (max 10 characters, padded with 0xFF)
     local function mapUTF8StringAndOutput(inputString)
-        local mappedNames = {}
+        local mapped = {}
         for _, char in utf8.codes(inputString) do
-            local mappedValue = characterToMemory[utf8.char(char)] or 0xFF
-            table.insert(mappedNames, mappedValue)
+            local val = characterToMemory[utf8.char(char)] or 0xFF
+            table.insert(mapped, val)
         end
-        if #mappedNames > 10 then
-            mappedNames = {table.unpack(mappedNames, 1, 10)}
+        if #mapped > 10 then
+            mapped = {table.unpack(mapped, 1, 10)}
         end
-        while #mappedNames < 10 do
-            table.insert(mappedNames, 0xFF)
+        while #mapped < 10 do
+            table.insert(mapped, 0xFF)
         end
-        return mappedNames
+        return mapped
     end
 
-    --------------------------------------
-    -- Conversion Function
+    --------------------------------------------------------------------------------
+    -- INJECTION LOGIC
     --
-    -- Reads the first entry from the JSON names list,
-    -- converts the "name" field to memory values, writes those bytes to the designated memory address,
-    -- and then removes that entry from the list.
-    --------------------------------------
-    local function convertAndWriteToMemory()
+    -- Monitors game memory for a new Pokémon in slot 1.
+    -- When triggered, the first name in the list is converted and written to memory.
+    --------------------------------------------------------------------------------
+    local function injectName()
         memory.usememorydomain("System Bus")
         local namesList = Resources.NamesList or {}
         if #namesList < 1 then
-            print("No names available in the list.")
             return
         end
-
         local entry = namesList[1]
         local name = entry.name or ""
-        local mappedNames = mapUTF8StringAndOutput(name)
-        local address = 0x0202428C  -- US FRLG nickname memory address
-
-        for _, value in ipairs(mappedNames) do
-            memory.writebyte(address, value)
-            local reader = memory.readbyte(address)
-            if reader ~= value then
-                print("Error: Failed to write to memory at " .. string.format("0x%X", address))
-                return
-            end
+        local mappedName = mapUTF8StringAndOutput(name)
+        local address = 0x0202428C  -- Memory address for Pokémon nickname (US FRLG)
+        for _, byte in ipairs(mappedName) do
+            memory.writebyte(address, byte)
             address = address + 1
         end
-
-        print("The name '" .. name .. "' has been recorded to the Pokémon.")
+        print("Injected name: '" .. truncateTo10(name) .. "' into game memory.")
         table.remove(namesList, 1)
         Resources.NamesList = namesList
         self.saveNamesToFile(namesList)
     end
 
-    --------------------------------------
-    -- Options Dialog: Edit Names List Popup
+    -- Memory monitoring: Called every 30 frames
+    local loopRun = true
+    local startAddress = 0x02024284  -- Memory address to check party slot status
+    function self.afterProgramDataUpdate()
+        local memCheck = memory.readbyte(startAddress)
+        if memCheck > 0 then
+            if loopRun then
+                injectName()
+                loopRun = false
+            end
+        elseif memCheck == 0 then
+            loopRun = true
+        end
+    end
+
+    --------------------------------------------------------------------------------
+    -- EVENT HANDLING: Adding a name to the list via chat or reward
     --
-    -- Opens a BizHawk form showing each entry formatted as "Name - Namer" (one per line).
-    -- Allows you to edit, save changes, or restore the default names list.
-    --------------------------------------
+    -- Both the chat command !ntp and the reward event add a new name (and the sender’s username)
+    -- to the list. The response confirms the name added (truncated to 10 characters).
+    --------------------------------------------------------------------------------
+    function self.tryAddName(event, request)
+        local response = { AdditionalInfo = { AutoComplete = false } }
+        local inputName = request.SanitizedInput
+        if not inputName or inputName == "" then
+            response.Message = string.format("> %s, please enter a name (up to 10 characters).", request.Username)
+            return response
+        end
+        local truncated = truncateTo10(inputName)
+        local newEntry = { name = inputName, namer = request.Username }
+        table.insert(Resources.NamesList, newEntry)
+        self.saveNamesToFile(Resources.NamesList)
+        response.Message = string.format("> %s added name '%s' to the list.", request.Username, truncated)
+        response.AdditionalInfo.AutoComplete = event.O_AutoComplete or false
+        return response
+    end
+
+    --------------------------------------------------------------------------------
+    -- EVENT REGISTRATION
+    --
+    -- Replicates the DeathQuotes structure for registering chat and reward events.
+    --------------------------------------------------------------------------------
+    self.RewardEvent = EventHandler.IEvent:new({
+        Key = "CR_NameThatPokemonAdd",
+        Type = EventHandler.EventTypes.Reward,
+        Name = "[EXT] Add a Name for Pokémon",
+        RewardId = "",  -- Will be loaded later
+        Options = { "O_SendMessage", "O_AutoComplete" },
+        O_SendMessage = true,
+        O_AutoComplete = true,
+        Fulfill = function(this, request)
+            return self.tryAddName(this, request)
+        end,
+    })
+
+    self.CommandEvent = EventHandler.IEvent:new({
+        Key = "CMD_NameThatPokemonAdd",
+        Type = EventHandler.EventTypes.Command,
+        Name = "[EXT] Add a Name for Pokémon",
+        Command = "!ntp",
+        Help = "> Adds a name (up to 10 characters) to the Name-That-Pokémon list.",
+        Fulfill = function(this, request)
+            local response = self.tryAddName(this, request)
+            response.AdditionalInfo = nil
+            return response
+        end,
+    })
+
+    --------------------------------------------------------------------------------
+    -- OPTIONS POPUP
+    --
+    -- Opens a BizHawk form that displays and allows editing of the NamesList.
+    --------------------------------------------------------------------------------
     function self.openPopup()
         local x, y, w, h, lineHeight = 20, 15, 600, 405, 20
         local bottomPadding = 115
         local form = Utils.createBizhawkForm("Edit Names List", w, h, 80, 20)
-
-        forms.label(form, "Edit entries or add new ones (format: Name - Namer), one per line:", x, y, w - 40, lineHeight)
+        forms.label(form, "Edit existing names or add new ones (format: Name - Namer), one per line:", x, y, w - 40, lineHeight)
         y = y + 20
-
         local lines = {}
         for _, entry in ipairs(Resources.NamesList or {}) do
             local nameStr = entry.name or ""
@@ -177,7 +219,6 @@ local function CodeExtensionTemplate()
         local namesAsText = table.concat(lines, NEWLINE)
         local namesTextBox = forms.textbox(form, namesAsText, w - 40, h - bottomPadding, nil, x - 1, y, true, true, "Vertical")
         y = y + (h - bottomPadding) + 10
-
         forms.button(form, Resources.AllScreens.Save, function()
             local text = forms.gettext(namesTextBox) or ""
             local newNames = {}
@@ -197,9 +238,7 @@ local function CodeExtensionTemplate()
             if self.DefaultNames and #self.DefaultNames > 0 then
                 local defaultLines = {}
                 for _, entry in ipairs(self.DefaultNames) do
-                    local nameStr = entry.name or ""
-                    local namerStr = entry.namer or ""
-                    table.insert(defaultLines, nameStr .. " - " .. namerStr)
+                    table.insert(defaultLines, entry.name .. " - " .. entry.namer)
                 end
                 forms.settext(namesTextBox, table.concat(defaultLines, NEWLINE))
             end
@@ -209,97 +248,35 @@ local function CodeExtensionTemplate()
         end, x + 335, y)
     end
 
-    --------------------------------------
-    -- Tracker Hooks & Extension Functions
-    --------------------------------------
-    -- When the Options button is clicked, open the names list editor popup.
     function self.configureOptions()
         self.openPopup()
     end
 
-    -- On startup, load (or create) the JSON file into Resources.NamesList.
+    --------------------------------------------------------------------------------
+    -- STARTUP & UNLOAD
+    --------------------------------------------------------------------------------
     function self.startup()
         self.DefaultNames = {}
         local filepath = self.getFilepathForNames()
-        if not FileManager.fileExists(filepath) then
-            -- Create an empty names file if it doesn't exist
-            self.saveNamesToFile({})
-            Resources.NamesList = {}
-            print("Created new names file: " .. filepath)
-        else
+        if FileManager.fileExists(filepath) then
             local names = self.getNamesFromFile()
             Resources.NamesList = {}
             FileManager.copyTable(names, Resources.NamesList)
-        end
-        loopRun = true
-    end
-
-    -- On unload, optionally restore the default names list.
-    function self.unload()
-        if self.DefaultNames and #self.DefaultNames > 0 then
+        else
             Resources.NamesList = {}
-            FileManager.copyTable(self.DefaultNames, Resources.NamesList)
-            self.saveNamesToFile(self.DefaultNames)
+            self.saveNamesToFile(Resources.NamesList)
         end
+        EventHandler.addNewEvent(self.RewardEvent)
+        EventHandler.addNewEvent(self.CommandEvent)
     end
 
-    -- This function is called every 30 frames after program data is updated.
-    -- When the game memory (at startAddress) indicates a condition, process the first names list entry.
-    function self.afterProgramDataUpdate()
-        local memCheck = memory.readbyte(startAddress)
-        if memCheck > 0 then
-            if loopRun then
-                -- Optionally add a check here to ensure the US FRLG game is loaded
-                convertAndWriteToMemory()
-                loopRun = false
-            end
-        elseif memCheck == 0 then
-            loopRun = true
-        end
-    end
-
-    --------------------------------------
-    -- Chat & Reward Event Handlers
-    --
-    -- These functions allow the extension to respond to chat commands and reward events
-    -- from the Tracker's chat connection.
-    --------------------------------------
-    function self.CommandEvent(message, user)
-        local cmd, args = message:match("^(%S+)%s*(.*)")
-        if cmd and cmd:lower() == "!ntp" then
-            print("!ntp command received via chat. Processing name conversion.")
-            convertAndWriteToMemory()
-        end
-    end
-
-    function self.RewardEvent(reward, user)
-        if reward and reward:lower():find("ntp") then
-            print("Reward event triggered for user " .. (user or "unknown") .. ". Processing name conversion.")
-            convertAndWriteToMemory()
-        end
-    end
-
-    -- Additional chat integration hooks so the Tracker can call our functions:
-    function self.onChatMessage(message, user)
-        self.CommandEvent(message, user)
-    end
-
-    function self.onRewardReceived(reward, user)
-        self.RewardEvent(reward, user)
-    end
-
-    -- Check for updates (optional)
-    function self.checkForUpdates()
-        local versionResponsePattern = '"tag_name":%s+"v?(%d+%.%d+%.%d+)"'
-        local versionCheckUrl = string.format("https://api.github.com/repos/%s/releases/latest", self.github or "")
-        local downloadUrl = string.format("%s/releases/latest", self.url or "")
-        local compareFunc = function(a, b) return a ~= b and not Utils.isNewerVersion(a, b) end
-        local isUpdateAvailable = Utils.checkForVersionUpdate(versionCheckUrl, self.version, versionResponsePattern, compareFunc)
-        return isUpdateAvailable, downloadUrl
+    function self.unload()
+        EventHandler.removeEvent(self.RewardEvent.Key)
+        EventHandler.removeEvent(self.CommandEvent.Key)
     end
 
     return self
 end
 
-return CodeExtensionTemplate
+return NameThatPokemon
 
