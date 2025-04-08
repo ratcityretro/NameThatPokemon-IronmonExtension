@@ -8,8 +8,8 @@ local function NameThatPokemon()
     self.github = "ratcityretro/NameThatPokemon-IronmonExtension"
     self.url = string.format("https://github.com/%s", self.github or "")
 
-    local namesFilename = "namesList.json"
-    local stateFilename = "ntpVars.json"
+    local namesFilename = "NameThatPokemon/namesList.json"
+    local stateFilename = "NameThatPokemon/ntpVars.json"    
     local seedNumber = Main.currentSeed
     local uniqueId = tostring(GameSettings.game) .. "_" .. tostring(seedNumber)
     local previousSeed = nil
