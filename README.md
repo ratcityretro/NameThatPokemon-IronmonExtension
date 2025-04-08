@@ -1,32 +1,50 @@
-﻿# Name That Pokemon!
-A script that can be loaded into BizHawk's EmuHawk Lua console that will automatically inject names from a list within a text file. 
+﻿
+# Name That Pokemon!
+
+The Old Script is Dead, Long Live the Extension.
+
+  
+
+Name That Pokemon is a Gen 3 specific extension for the [Ironmon Tracker](https://github.com/besteon/Ironmon-Tracker) that will allow you to add names using functionality built into the Ironmon Tracker's streamer.bot integration.
+
+  
 
 ## Setup
-This is jank so bear with me:
 
-Download the script to your Lua folder for BizHawk
+Either copy the repository URL into the install window inside the track or download the Lua file and asset folder from the latest release and add it to your extensions folder.
 
-Create a names.txt file in the same location
+  
 
-Setup your Streamerbot with an action that will take the chatter's name and append the names.txt file
+Enable the !namethatpokemon command (or rename it from that) and/or enable the Name That Pokemon reward from the Streaming settings menu in the tracker. Names added from either method will be at the bottom of the list.
 
----Import this and it'll do that for you: https://pastebin.com/rx5HRLfB
+  
 
-!ntp will record the name to the file. Sometimes blank lines will append in, but the script will clear those
+## Guts
 
-All cool scripts have warnings: 
+The names are truncated to 10 characters because that is the limit in Gen 3. The names are recorded to a namesList.json file that also records the person who requested the name. If you want to do something with the requester like write it to a temporary text file for displaying on an overlay, you can do that but I won't tell you how (unless you sub to [twitch.tv/ratcityretro](twitch.tv/ratcityretro) #streambig).
 
-The script loads a name when you go from ZERO POKEMON to ONE POKEMON. So loading up a savestate with a pokemon to continue your run mimics this "acquisition" - this can be worked around by leaving the emulator open between streams like a real gamer 
+  
 
-## Proof of Concept
-This is a POC to write nicknames to the 10 bytes available within the memory of a pokemon game. This started out as an idea that I threw at an AI because I did not know any Lua, so through some refinement we got it to this point. Streamerbot will only need to append to a textfile (names.txt by default) the chatter's input.
+The script monitors the seed changing, the lead pokemon existence, and keeps track of the name in use. Swapping out a new mon from a pivot at any point will inject the same name that is tracked per seed.
+
+  
+
+**SAFARI WARNING: Naming mons placeholder names like BANK will be overwritten by this extension.**
+
+  
+
+## ratcitUNREALTHEFT
+
+Huge shoutout to [UTDZac](https://www.twitch.tv/UTDZac) who made [DeathQuotes](https://github.com/UTDZac/DeathQuotes-IronmonExtension/releases/latest) while I was memeing about it in my channel which gave me the framework to update my script to work as an extension. And [WaffleSmacker](https://www.twitch.tv/WaffleSmacker)'s efforts in exposing the tracker's API for different event use cases. 
+
+  
 
 ## Future
-This will become an extension for the ironmon tracker eventually. We need to take advantage of resources within the tracker for the following:
-- Location detection so this only runs in the lab
-- Reload detection so it doesn't overwrite a name when a user continues a run
+This currently only works for USA Gen 3 (probably). I'd love to add in some options:
 
-Other features planned:
-- Randomizing as an option to select the name, which will need a UI
-- Channel point redemption to gate the command or allow for line jumping the queue, also needs a UI
-- Logging usernames and delimiting them so they can be included in an OBS overlay to show the current "namer"
+- Persist the name list
+- Shuffle the name list
+- Channel point redemption to put the name at the top
+
+## Support
+Open an issue here but also just stop by my channel or Discord and it'll probably be an easy solve. 

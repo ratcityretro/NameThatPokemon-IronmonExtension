@@ -255,6 +255,7 @@ local function NameThatPokemon()
     -- Game checks to determine address nonsense, 3 = FRLG, 2 = Emerald
     local function isPlayingFRLG() return GameSettings.game == 3 end
     local function isPlayingE() return GameSettings.game == 2 end
+    -- Waffle had this check idk I might use it later
     local function isPlayingFRorE() return isPlayingFRLG() or isPlayingE() end
 
     local function injectName(name)
@@ -283,10 +284,6 @@ local function NameThatPokemon()
         self.saveNamesToFile(Resources.namesList)
     end
 
-    local loopRun = true
-    -- Need emerald's name address, this is FRLG at least
-    local startAddress = 0x02024284
-
     function self.afterProgramDataUpdate()
         if not isPlayingFRLG() or not Program.isValidMapLocation() then
             return
@@ -308,7 +305,7 @@ local function NameThatPokemon()
             return
         end
 
-        -- Phase 1: Inject name once per seed
+        -- Inject name once per seed
         if leadPokemon.nickname and not nameBurned then
             local entry = Resources.namesList[1]
             if entry and entry.name then
@@ -320,7 +317,7 @@ local function NameThatPokemon()
             return
         end
 
-        -- Phase 2: Re-inject saved name if lead Pokémon name has changed
+        -- Re-inject saved name if lead Pokémon name has changed
         if ntpVars.currentName and leadPokemon.nickname ~= ntpVars.currentName then
             if ntpVars.currentName and ntpVars.currentName ~= "" then
                 injectName(ntpVars.currentName)
@@ -346,7 +343,7 @@ local function NameThatPokemon()
         table.insert(Resources.namesList, newEntry)
         self.saveNamesToFile(Resources.namesList)
 
-        response.Message = string.format("> %s added name '%s' to the list.",
+        response.Message = string.format("> %s added the name '%s' to the list!",
                                          request.Username, truncated)
         response.AdditionalInfo.AutoComplete = event.O_AutoComplete or false
         return response
@@ -356,7 +353,7 @@ local function NameThatPokemon()
         Key = "CR_NameThatPokemonAdd",
         Type = EventHandler.EventTypes.Reward,
         Name = "[EXT] Add a Name for Pokémon",
-        RewardId = "",
+        RewardId = "", --this gets filled in by the tracker later when you select it
         Options = {"O_SendMessage", "O_AutoComplete"},
         O_SendMessage = true,
         O_AutoComplete = true,
@@ -370,7 +367,7 @@ local function NameThatPokemon()
         Key = "CMD_NameThatPokemonAdd",
         Type = EventHandler.EventTypes.Command,
         Name = "[EXT] Add a Name for Pokémon",
-        Command = "!ntp",
+        Command = "!namethatpokemon",
         Help = "> Adds a name (up to 10 characters) to the Name-That-Pokémon list.",
         Fulfill = function(this, request)
             local response = self.tryAddName(this, request)
