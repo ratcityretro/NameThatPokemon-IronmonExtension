@@ -11,7 +11,7 @@ Name That Pokemon is a Gen 3 specific extension for the [Ironmon Tracker](https:
 
 ## Setup
 
-Either copy the repository URL into the install window inside the track or download the Lua file and asset folder from the latest release and add it to your extensions folder.
+I zipped up the goods, so download the zip file from the latest release and unzip it to your extensions folder. It'll give you the script and the directory for the json files.
 
   
 
