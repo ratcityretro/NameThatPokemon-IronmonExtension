@@ -252,6 +252,11 @@ local function NameThatPokemon()
         return mapped
     end
 
+    -- Game checks to determine address nonsense, 3 = FRLG, 2 = Emerald
+    local function isPlayingFRLG() return GameSettings.game == 3 end
+    local function isPlayingE() return GameSettings.game == 2 end
+    local function isPlayingFRorE() return isPlayingFRLG() or isPlayingE() end
+
     local function injectName(name)
         memory.usememorydomain("System Bus")
         Resources.namesList = Resources.namesList or {}
@@ -262,8 +267,10 @@ local function NameThatPokemon()
 
         -- local name = entry.name
         local mappedName = mapUTF8StringAndOutput(name)
-        local address = 0x0202428C -- FRLG nickname memory address
-
+        local address = isPlayingFRLG() and 0x0202428C or (isPlayingE() and 0x020244EC) or nil
+        -- xxx28C is USA FRLG nickname memory address
+        -- xxx4EC is USA Emerald nickname memory address
+        if not address then return end
         for _, byte in ipairs(mappedName) do
             memory.writebyte(address, byte)
             address = address + 1
@@ -275,11 +282,6 @@ local function NameThatPokemon()
         table.remove(Resources.namesList, 1)
         self.saveNamesToFile(Resources.namesList)
     end
-
-    -- Game checks to determine address nonsense, 3 = FRLG, 2 = Emerald
-    local function isPlayingFRLG() return GameSettings.game == 3 end
-    local function isPlayingE() return GameSettings.game == 2 end
-    local function isPlayingFRorE() return isPlayingFRLG() or isPlayingE() end
 
     local loopRun = true
     -- Need emerald's name address, this is FRLG at least
