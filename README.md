@@ -25,15 +25,15 @@ extensions/
    After downloading the latest release ZIP, unzip the contents into your Ironmon Tracker `extensions` folder. You’ll find a Lua script and a folder with the JSON files.
 
 2. **Enable the Command and/or Reward**  
-   In the tracker’s **Streaming settings** (a), under the **Stream Connect** options (b), enable the `!namethatpokemon` command labeled `[EXT] Add a Name for a Pokemon` (c) and/or the **Name That Pokemon** channel point reward (d). The reward needs one assigned to it from this menu.
+   In the tracker’s **Streaming settings** (figure a), under the **Stream Connect** options (figure b), enable the `!namethatpokemon` command labeled `[EXT] Add a Name for a Pokemon` (figure c) and/or the **Name That Pokemon** channel point reward (figure d). The reward needs one assigned to it from this menu.
 
- a) ![baNxP3k](https://github.com/user-attachments/assets/8cee68fd-a424-4a5a-b1d3-9e33a3510194)
+     fig a) ![baNxP3k](https://github.com/user-attachments/assets/8cee68fd-a424-4a5a-b1d3-9e33a3510194)
 
- b) ![5YVpC1c](https://github.com/user-attachments/assets/2af91438-1204-44d4-af9c-b35d712cac7a) 
+     fig b) ![5YVpC1c](https://github.com/user-attachments/assets/2af91438-1204-44d4-af9c-b35d712cac7a) 
  
- c) ![FxTnh8O](https://github.com/user-attachments/assets/eba9de45-31eb-4b5a-9c4c-1338dedf7824)
+     fig c) ![FxTnh8O](https://github.com/user-attachments/assets/eba9de45-31eb-4b5a-9c4c-1338dedf7824)
 
- d) ![RSOJIBG](https://github.com/user-attachments/assets/973346b7-20ba-4e8d-bb2a-40bbcbcee37f)
+     fig d) ![RSOJIBG](https://github.com/user-attachments/assets/973346b7-20ba-4e8d-bb2a-40bbcbcee37f)
 
 
 4. **The Script Works in the Background**  
