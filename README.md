@@ -5,9 +5,10 @@ The Old Script is Dead, Long Live the Extension.
 
 Name That Pokemon is a Gen 3 specific extension for the [Ironmon Tracker](https://github.com/besteon/Ironmon-Tracker) that will allow you to add names using functionality built into the Ironmon Tracker's streamer.bot integration.
 
-## Setup
+## How to Use
 
-I zipped up the goods, so download the zip file from the latest release and unzip it to your `extensions` folder. It'll give you the script and the directory for the json files. The structure will look like this:
+1. **Drop in the Extension**  
+   After downloading the latest release ZIP, unzip the contents into your Ironmon Tracker `extensions` folder. You’ll find a Lua script and a folder with the JSON files. It'll give you the script and the directory for the json files. The structure will look like this:
 
 <pre lang="markdown"><code> 
 extensions/
@@ -16,13 +17,6 @@ extensions/
     ├── namesList.json
     └── ntpVars.json
  </code></pre>
-
-
-
-## How to Use
-
-1. **Drop in the Extension**  
-   After downloading the latest release ZIP, unzip the contents into your Ironmon Tracker `extensions` folder. You’ll find a Lua script and a folder with the JSON files.
 
 2. **Enable the Command and/or Reward**  
    In the tracker’s **Streaming settings** (figure a), under the **Stream Connect** options (figure b), enable the `!namethatpokemon` command labeled `[EXT] Add a Name for a Pokemon` (figure c) and/or the **Name That Pokemon** channel point reward (figure d). The reward needs one assigned to it from this menu.
