@@ -3,21 +3,31 @@
 
 The Old Script is Dead, Long Live the Extension.
 
-  
-
 Name That Pokemon is a Gen 3 specific extension for the [Ironmon Tracker](https://github.com/besteon/Ironmon-Tracker) that will allow you to add names using functionality built into the Ironmon Tracker's streamer.bot integration.
-
-  
 
 ## Setup
 
-I zipped up the goods, so download the zip file from the latest release and unzip it to your extensions folder. It'll give you the script and the directory for the json files.
+I zipped up the goods, so download the zip file from the latest release and unzip it to your `extensions` folder. It'll give you the script and the directory for the json files. The structure will look like this:
 
-  
+<pre lang="markdown"><code> ``` extensions/ ├── NameThatPokemon.lua └── nameThatPokemon/ ├── namesList.json └── ntpVars.json ``` </code></pre>
 
-Enable the !namethatpokemon command (or rename it from that) and/or enable the Name That Pokemon reward from the Streaming settings menu in the tracker. Names added from either method will be at the bottom of the list.
 
-  
+
+## How to Use
+
+1. **Drop in the Extension**  
+   After downloading the latest release ZIP, unzip the contents into your Ironmon Tracker `extensions` folder. You’ll find a Lua script and a folder with the JSON files.
+
+2. **Enable the Command and/or Reward**  
+   In the tracker’s **Streaming settings**, under the **Stream Connect** options, enable the `!namethatpokemon` command labeled `[EXT] Add a Name for a Pokemon` and/or the **Name That Pokemon** channel point reward. The reward needs one assigned to it from this menu.
+
+3. **The Script Works in the Background**  
+   Once enabled:
+   - Names submitted through chat or rewards get saved to `namesList.json` (including the submitter's name).
+   - Names must be 10 characters, but names past 10 characters will be truncated.
+   - The extension watches for when a new run starts (based on game seed) and when a new lead Pokémon appears.
+   - When a valid Pokémon appears in slot 1, the extension injects the next name from the list and logs it as "in use" for that seed.
+   - If you pivot mid-run, the same name will be reused until the run resets.
 
 ## Guts
 
