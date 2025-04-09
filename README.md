@@ -25,17 +25,27 @@ extensions/
    After downloading the latest release ZIP, unzip the contents into your Ironmon Tracker `extensions` folder. You’ll find a Lua script and a folder with the JSON files.
 
 2. **Enable the Command and/or Reward**  
-   In the tracker’s **Streaming settings**, under the **Stream Connect** options, enable the `!namethatpokemon` command labeled `[EXT] Add a Name for a Pokemon` and/or the **Name That Pokemon** channel point reward. The reward needs one assigned to it from this menu.
+   In the tracker’s **Streaming settings** (a), under the **Stream Connect** options (b), enable the `!namethatpokemon` command labeled `[EXT] Add a Name for a Pokemon` (c) and/or the **Name That Pokemon** channel point reward (d). The reward needs one assigned to it from this menu.
 
-3. **The Script Works in the Background**  
+ a) ![baNxP3k](https://github.com/user-attachments/assets/8cee68fd-a424-4a5a-b1d3-9e33a3510194)
+
+ b) ![5YVpC1c](https://github.com/user-attachments/assets/2af91438-1204-44d4-af9c-b35d712cac7a) 
+ 
+ c) ![FxTnh8O](https://github.com/user-attachments/assets/eba9de45-31eb-4b5a-9c4c-1338dedf7824)
+
+ d) ![RSOJIBG](https://github.com/user-attachments/assets/973346b7-20ba-4e8d-bb2a-40bbcbcee37f)
+
+
+4. **The Script Works in the Background**  
    Once enabled:
-   - Names submitted through chat or rewards get saved to `namesList.json` (including the submitter's name).
+   - Names submitted through chat (!namethatpokemon gleepglorp) or rewards get saved to `namesList.json` (including the submitter's name).
    - Names must be 10 characters, but names past 10 characters will be truncated.
    - The extension watches for when a new run starts (based on game seed) and when a new lead Pokémon appears.
+   - If enabling on an existing run, the next name will be injected immediately if it exists.
    - When a valid Pokémon appears in slot 1, the extension injects the next name from the list and logs it as "in use" for that seed.
    - If you pivot mid-run, the same name will be reused until the run resets.
 
-## Guts
+## Guts / Behind the Scenes
 
 The names are truncated to 10 characters because that is the limit in Gen 3. The names are recorded to a namesList.json file that also records the person who requested the name. If you want to do something with the requester like write it to a temporary text file for displaying on an overlay, you can do that but I won't tell you how (unless you sub to [twitch.tv/ratcityretro](twitch.tv/ratcityretro) #streambig).
 
