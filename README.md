@@ -7,7 +7,10 @@ Name That Pokemon is a Gen 3 specific extension for the [Ironmon Tracker](https:
 
 ## How to Use
 
-1. **Drop in the Extension**  
+1. **Streamer.bot Stream Connect**  
+   The extension is designed to work in conjunction with the existing Stream Connect functionality. You can find guidelines on how to set that up here in the [Stream Connect Setup Guide](https://github.com/besteon/Ironmon-Tracker/wiki/Stream-Connect-Guide).
+
+2. **Drop in the Extension**  
    After downloading the latest release ZIP, unzip the contents into your Ironmon Tracker `extensions` folder. You’ll find a Lua script and a folder with the JSON files. It'll give you the script and the directory for the json files. The structure will look like this:
 
 <pre lang="markdown"><code> 
@@ -18,7 +21,7 @@ extensions/
     └── ntpVars.json
  </code></pre>
 
-2. **Enable the Command and/or Reward**  
+3. **Enable the Command and/or Reward**  
    In the tracker’s **Streaming settings** (figure a), under the **Stream Connect** options (figure b), enable the `!namethatpokemon` command labeled `[EXT] Add a Name for a Pokemon` (figure c) and/or the **Name That Pokemon** channel point reward (figure d). The reward needs one assigned to it from this menu.
 
      fig a) ![baNxP3k](https://github.com/user-attachments/assets/8cee68fd-a424-4a5a-b1d3-9e33a3510194)
@@ -37,7 +40,7 @@ extensions/
    - The extension watches for when a new run starts (based on game seed) and when a new lead Pokémon appears.
    - If enabling on an existing run, the next name will be injected immediately if it exists.
    - When a valid Pokémon appears in slot 1, the extension injects the next name from the list and logs it as "in use" for that seed.
-   - If you pivot mid-run, the same name will be reused until the run resets.
+   - If you pivot mid-run, the same name will be reused when the new mon is moved into the top spot. 
 
 ## Guts / Behind the Scenes
 
