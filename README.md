@@ -9,7 +9,13 @@ Name That Pokemon is a Gen 3 specific extension for the [Ironmon Tracker](https:
 
 I zipped up the goods, so download the zip file from the latest release and unzip it to your `extensions` folder. It'll give you the script and the directory for the json files. The structure will look like this:
 
-<pre lang="markdown"><code> ``` extensions/ ├── NameThatPokemon.lua └── nameThatPokemon/ ├── namesList.json └── ntpVars.json ``` </code></pre>
+<pre lang="markdown"><code> 
+extensions/
+├── NameThatPokemon.lua
+└── nameThatPokemon/
+    ├── namesList.json
+    └── ntpVars.json
+ </code></pre>
 
 
 
