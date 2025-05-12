@@ -1,6 +1,6 @@
 local function NameThatPokemon()
     local self = {}
-    self.version = "1.0"
+    self.version = "1.1"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"
     self.description =
@@ -9,7 +9,8 @@ local function NameThatPokemon()
     self.url = string.format("https://github.com/%s", self.github or "")
 
     local namesFilename = "NameThatPokemon/namesList.json"
-    local stateFilename = "NameThatPokemon/ntpVars.json"    
+    local stateFilename = "NameThatPokemon/ntpVars.json" 
+    local namerFilename = "NameThatPokemon/namer.txt"   
     local seedNumber = Main.currentSeed
     local uniqueId = tostring(GameSettings.game) .. "_" .. tostring(seedNumber)
     local previousSeed = nil
@@ -37,6 +38,28 @@ local function NameThatPokemon()
         if not filepath then return end
         FileManager.encodeToJsonFile(filepath, names or {})
     end
+
+function self.getNamerFilePath()
+    return FileManager.getCustomFolderPath() .. namerFilename
+end
+
+function self.updateNamerTextFile(namer)
+    local folder = FileManager.getCustomFolderPath() .. "NameThatPokemon"
+    if not FileManager.fileExists(folder) then
+        -- bizhawk might not have mkdir, so fallback to os.execute
+        os.execute(('mkdir "%s"'):format(folder))
+    end
+
+    local path = self.getNamerFilePath()
+    local f = io.open(path, "w")
+    if not f then
+        print("NameThatPokemon: could not write namer.txt to", path)
+        return
+    end
+    f:write(namer or "")
+    f:close()
+end
+    
 
     -- ntpVars.json structure:
     -- {
@@ -262,27 +285,34 @@ local function NameThatPokemon()
         memory.usememorydomain("System Bus")
         Resources.namesList = Resources.namesList or {}
         if #Resources.namesList == 0 then return end
-
+    
         local entry = Resources.namesList[1]
         if not entry or not entry.name then return end
-
-        -- local name = entry.name
-        local mappedName = mapUTF8StringAndOutput(name)
-        local address = isPlayingFRLG() and 0x0202428C or (isPlayingE() and 0x020244EC) or nil
-        -- xxx28C is USA FRLG nickname memory address
-        -- xxx4EC is USA Emerald nickname memory address
+    
+        -- write the name into game memory
+        local mapped = mapUTF8StringAndOutput(name)
+        local address = isPlayingFRLG() and 0x0202428C
+                     or isPlayingE()   and 0x020244EC
+                     or nil
         if not address then return end
-        for _, byte in ipairs(mappedName) do
+        for _, byte in ipairs(mapped) do
             memory.writebyte(address, byte)
             address = address + 1
         end
-        -- Write injected name to ntpVars.json
+    
+        -- save state
         self.saveCurrentNameState(nil, truncateTo10(name))
-
-        -- Remove name from queue and save
+    
+        -- **new**: write out the chat user who submitted it
+        if entry.namer then
+            self.updateNamerTextFile(entry.namer)
+        end
+    
+        -- remove *one* time from the queue and save
         table.remove(Resources.namesList, 1)
         self.saveNamesToFile(Resources.namesList)
     end
+    
 
     function self.afterProgramDataUpdate()
         if not isPlayingFRLG() or not Program.isValidMapLocation() then
@@ -310,8 +340,6 @@ local function NameThatPokemon()
             local entry = Resources.namesList[1]
             if entry and entry.name then
                 injectName(entry.name)
-                table.remove(Resources.namesList, 1)
-                self.saveNamesToFile(Resources.namesList)
                 nameBurned = true
             end
             return
