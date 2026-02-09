@@ -1,6 +1,6 @@
 local function NameThatPokemon()
     local self = {}
-    self.version = "1.1"
+    self.version = "1.2"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"
     self.description =
@@ -11,10 +11,16 @@ local function NameThatPokemon()
     local namesFilename = "NameThatPokemon/namesList.json"
     local stateFilename = "NameThatPokemon/ntpVars.json" 
     local namerFilename = "NameThatPokemon/namer.txt"   
-    local seedNumber = Main.currentSeed
-    local uniqueId = tostring(GameSettings.game) .. "_" .. tostring(seedNumber)
-    local previousSeed = nil
+    -- Run fingerprint from Tracker API (lead Pokemon's trainerID); independent of tracker profile/seed
+    local previousRunFingerprint = nil
     local newLine = "\r\n"
+
+    -- Uses Ironmon-Tracker API only: lead Pokemon's OT trainerID identifies the save (same across FR/LG/E)
+    local function getRunFingerprint()
+        local leadPokemon = Tracker.getPokemon(1, true)
+        if not leadPokemon or not leadPokemon.trainerID then return nil end
+        return tostring(GameSettings.game) .. "_" .. tostring(leadPokemon.trainerID)
+    end
     self.DefaultNames = {}
 
     local function readNtpVars()
@@ -62,8 +68,9 @@ end
     
 
     -- ntpVars.json structure:
+    -- uniqueId = run fingerprint from Tracker API (game + lead Pokemon trainerID), not tracker seed
     -- {
-    --     "uniqueId": "FIRERED_123456",
+    --     "uniqueId": "3_12345",
     --     "currentName": "Pikachu"
     -- }
 
@@ -96,12 +103,16 @@ end
         return truncated
     end
 
-    local function hasSeedChanged()
-        local currentSeed = Main.currentSeed
-        if previousSeed ~= currentSeed then
-            previousSeed = currentSeed
+    -- True when the in-game run (TID+SID) differs from persisted state (survives profile switch)
+    local function hasRunChanged()
+        local fp = getRunFingerprint()
+        if not fp then return false end
+        local saved = readNtpVars()
+        if (saved.uniqueId or "") ~= fp then
+            previousRunFingerprint = fp
             return true
         end
+        previousRunFingerprint = fp
         return false
     end
 
@@ -323,9 +334,9 @@ end
         local leadPokemon = Tracker.getPokemon(1, true)
         local ntpVars = readNtpVars()
 
-        -- Reset on seed change
-        if hasSeedChanged() then
-            self.saveCurrentNameState(uniqueId, nil) -- Reset currentName, update uniqueId
+        -- Reset when a different save/run is detected (TID+SID from game RAM, not tracker seed)
+        if hasRunChanged() then
+            self.saveCurrentNameState(previousRunFingerprint, nil)
             nameBurned = false
             return
         end
@@ -463,6 +474,9 @@ end
     function self.startup()
         self.DefaultNames = {}
         Resources.namesList = {}
+
+        -- Sync run fingerprint so we don't false-trigger on first frame
+        previousRunFingerprint = getRunFingerprint() or readNtpVars().uniqueId
 
         local filepath = self.getFilepathForNames()
         if FileManager.fileExists(filepath) then
