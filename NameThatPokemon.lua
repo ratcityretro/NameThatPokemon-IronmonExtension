@@ -1,6 +1,6 @@
 local function NameThatPokemon()
     local self = {}
-    self.version = "1.2"
+    self.version = "1.3"
     self.name = "Name That Pokemon"
     self.author = "ratcityretro"
     self.description =
