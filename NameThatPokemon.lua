@@ -9,24 +9,36 @@ local function NameThatPokemon()
     self.url = string.format("https://github.com/%s", self.github or "")
 
     local namesFilename = "NameThatPokemon/namesList.json"
-    local stateFilename = "NameThatPokemon/ntpVars.json" 
-    local namerFilename = "NameThatPokemon/namer.txt"   
-    -- Run fingerprint from Tracker API (lead Pokemon's trainerID); independent of tracker profile/seed
+    local stateFilename = "NameThatPokemon/ntpVars.json"
+    local namerFilename = "NameThatPokemon/namer.txt"
+    -- Run fingerprint = game + seed, scoped per profile so profile switch doesn't overwrite
     local previousRunFingerprint = nil
+    -- So we only write namer.txt when profile or currentNamer changed (single file for OBS)
+    local lastWrittenProfileKey = nil
+    local lastWrittenNamer = nil
     local newLine = "\r\n"
 
-    -- Uses Ironmon-Tracker API only: lead Pokemon's OT trainerID identifies the save (same across FR/LG/E)
+    -- uniqueId = game + currentSeed (per profile). TID alone is often same across new seeds; seed changes per run.
     local function getRunFingerprint()
-        local leadPokemon = Tracker.getPokemon(1, true)
-        if not leadPokemon or not leadPokemon.trainerID then return nil end
-        return tostring(GameSettings.game) .. "_" .. tostring(leadPokemon.trainerID)
+        local seed = Main.currentSeed
+        if seed == nil then return nil end
+        return tostring(GameSettings.game) .. "_" .. tostring(seed)
     end
+
+    local function getProfileKey()
+        local id = Options["Active Profile"]
+        return (id ~= nil and id ~= "") and id or "default"
+    end
+
     self.DefaultNames = {}
 
+    -- Single file keyed by profileId; returns state for current profile only { uniqueId, currentName }
     local function readNtpVars()
         local filepath = self.getFilepathForState()
         if not FileManager.fileExists(filepath) then return {} end
-        return FileManager.decodeJsonFile(filepath) or {}
+        local full = FileManager.decodeJsonFile(filepath) or {}
+        local key = getProfileKey()
+        return full[key] or {}
     end
 
     function self.getFilepathForNames()
@@ -67,26 +79,25 @@ function self.updateNamerTextFile(namer)
 end
     
 
-    -- ntpVars.json structure:
-    -- uniqueId = run fingerprint from Tracker API (game + lead Pokemon trainerID), not tracker seed
-    -- {
-    --     "uniqueId": "3_12345",
-    --     "currentName": "Pikachu"
-    -- }
+    -- ntpVars.json: single file, keyed by profileId; currentNamer = who submitted the name (for namer.txt sync)
+    -- { "<profileId>": { "uniqueId": "3_123456", "currentName": "Pikachu", "currentNamer": "Puffsun" }, ... }
 
     function self.getFilepathForState()
         return FileManager.getCustomFolderPath() .. stateFilename
     end
 
-    function self.saveCurrentNameState(uniqueIdparam, currentName)
+    function self.saveCurrentNameState(uniqueIdparam, currentName, currentNamer)
         local filepath = self.getFilepathForState()
         if not filepath then return end
 
-        local state = readNtpVars()
-        state.uniqueId = uniqueIdparam or state.uniqueId or ""
-        state.currentName = currentName or state.currentName or ""
+        local full = FileManager.decodeJsonFile(filepath) or {}
+        local key = getProfileKey()
+        full[key] = full[key] or {}
+        full[key].uniqueId = uniqueIdparam or full[key].uniqueId or ""
+        full[key].currentName = currentName or full[key].currentName or ""
+        full[key].currentNamer = currentNamer or full[key].currentNamer or ""
 
-        FileManager.encodeToJsonFile(filepath, state)
+        FileManager.encodeToJsonFile(filepath, full)
     end
 
     local function truncateTo10(input)
@@ -103,7 +114,7 @@ end
         return truncated
     end
 
-    -- True when the in-game run (TID+SID) differs from persisted state (survives profile switch)
+    -- True when current seed (for this profile) differs from persisted uniqueId for this profile
     local function hasRunChanged()
         local fp = getRunFingerprint()
         if not fp then return false end
@@ -292,7 +303,8 @@ end
     -- Waffle had this check idk I might use it later
     local function isPlayingFRorE() return isPlayingFRLG() or isPlayingE() end
 
-    local function injectName(name)
+    -- namer: optional; when provided (e.g. from queue entry), save to state and write namer.txt
+    local function injectName(name, namer)
         memory.usememorydomain("System Bus")
         Resources.namesList = Resources.namesList or {}
         if #Resources.namesList == 0 then return end
@@ -311,12 +323,13 @@ end
             address = address + 1
         end
     
-        -- save state
-        self.saveCurrentNameState(nil, truncateTo10(name))
+        -- save state (namer = who submitted, so we can sync namer.txt when switching profile)
+        self.saveCurrentNameState(nil, truncateTo10(name), namer)
     
-        -- **new**: write out the chat user who submitted it
-        if entry.namer then
-            self.updateNamerTextFile(entry.namer)
+        if namer then
+            self.updateNamerTextFile(namer)
+            lastWrittenProfileKey = getProfileKey()
+            lastWrittenNamer = namer
         end
     
         -- remove *one* time from the queue and save
@@ -334,11 +347,20 @@ end
         local leadPokemon = Tracker.getPokemon(1, true)
         local ntpVars = readNtpVars()
 
-        -- Reset when a different save/run is detected (TID+SID from game RAM, not tracker seed)
+        -- Reset when a new seed is detected (per profile; state file is profile-specific)
         if hasRunChanged() then
-            self.saveCurrentNameState(previousRunFingerprint, nil)
+            self.saveCurrentNameState(previousRunFingerprint, "", "")
             nameBurned = false
             return
+        end
+
+        -- Sync namer.txt to current profile's namer when profile or namer changed (single file for OBS)
+        local profileKey = getProfileKey()
+        local currentNamer = ntpVars.currentNamer or ""
+        if profileKey ~= lastWrittenProfileKey or currentNamer ~= lastWrittenNamer then
+            self.updateNamerTextFile(currentNamer)
+            lastWrittenProfileKey = profileKey
+            lastWrittenNamer = currentNamer
         end
 
         -- Wait until a valid lead Pokémon exists
@@ -346,17 +368,17 @@ end
             return
         end
 
-        -- Inject name once per seed
+        -- Inject name once per seed (pass namer so state + namer.txt get it)
         if leadPokemon.nickname and not nameBurned then
             local entry = Resources.namesList[1]
             if entry and entry.name then
-                injectName(entry.name)
+                injectName(entry.name, entry.namer)
                 nameBurned = true
             end
             return
         end
 
-        -- Re-inject saved name if lead Pokémon name has changed
+        -- Re-inject saved name if lead Pokémon name has changed (no namer param; state keeps currentNamer)
         if ntpVars.currentName and leadPokemon.nickname ~= ntpVars.currentName then
             if ntpVars.currentName and ntpVars.currentName ~= "" then
                 injectName(ntpVars.currentName)
@@ -415,6 +437,26 @@ end
         end
     })
     self.CommandEvent.IsEnabled = false
+
+    function self.tryGetNameCount(event, request)
+        local names = self.getNamesFromFile()
+        local count = (names and #names) or 0
+        return {
+            Message = string.format("> There are %d name(s) in the list.", count)
+        }
+    end
+
+    self.CommandEventNameCount = EventHandler.IEvent:new({
+        Key = "CMD_NameThatPokemonNameCount",
+        Type = EventHandler.EventTypes.Command,
+        Name = "[EXT] Get the name count",
+        Command = "!namecount",
+        Help = "> Returns the number of entries in the names list.",
+        Fulfill = function(this, request)
+            return self.tryGetNameCount(this, request)
+        end
+    })
+    self.CommandEventNameCount.IsEnabled = false
 
     function self.openPopup()
         local x, y, w, h, lineHeight = 20, 15, 600, 405, 20
@@ -492,6 +534,7 @@ end
 
         EventHandler.addNewEvent(self.RewardEvent)
         EventHandler.addNewEvent(self.CommandEvent)
+        EventHandler.addNewEvent(self.CommandEventNameCount)
     end
 
     function self.unload()
@@ -502,6 +545,7 @@ end
 
         EventHandler.removeEvent(self.RewardEvent.Key)
         EventHandler.removeEvent(self.CommandEvent.Key)
+        EventHandler.removeEvent(self.CommandEventNameCount.Key)
     end
 
     function self.checkForUpdates()
