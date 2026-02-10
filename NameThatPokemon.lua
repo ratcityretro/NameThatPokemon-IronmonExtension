@@ -410,6 +410,30 @@ end
         return response
     end
 
+    function self.tryAddNameNext(event, request)
+        local response = {AdditionalInfo = {AutoComplete = false}}
+        local inputName = request.SanitizedInput
+
+        if not inputName or inputName == "" then
+            response.Message = string.format(
+                                   "> %s, please enter a name (up to 10 characters).",
+                                   request.Username)
+            return response
+        end
+
+        local truncated = truncateTo10(inputName)
+        local newEntry = {name = inputName, namer = request.Username}
+
+        Resources.namesList = Resources.namesList or {}
+        table.insert(Resources.namesList, 1, newEntry)
+        self.saveNamesToFile(Resources.namesList)
+
+        response.Message = string.format("> %s added '%s' as the next name!",
+                                         request.Username, truncated)
+        response.AdditionalInfo.AutoComplete = event.O_AutoComplete or false
+        return response
+    end
+
     self.RewardEvent = EventHandler.IEvent:new({
         Key = "CR_NameThatPokemonAdd",
         Type = EventHandler.EventTypes.Reward,
@@ -423,6 +447,20 @@ end
         end
     })
     self.RewardEvent.IsEnabled = false
+
+    self.RewardEventNext = EventHandler.IEvent:new({
+        Key = "CR_NameThatPokemonNext",
+        Type = EventHandler.EventTypes.Reward,
+        Name = "[EXT] Name the Next Pokémon",
+        RewardId = "",
+        Options = {"O_SendMessage", "O_AutoComplete"},
+        O_SendMessage = true,
+        O_AutoComplete = true,
+        Fulfill = function(this, request)
+            return self.tryAddNameNext(this, request)
+        end
+    })
+    self.RewardEventNext.IsEnabled = false
 
     self.CommandEvent = EventHandler.IEvent:new({
         Key = "CMD_NameThatPokemonAdd",
@@ -533,6 +571,7 @@ end
         FileManager.copyTable(Resources.namesList, self.DefaultNames)
 
         EventHandler.addNewEvent(self.RewardEvent)
+        EventHandler.addNewEvent(self.RewardEventNext)
         EventHandler.addNewEvent(self.CommandEvent)
         EventHandler.addNewEvent(self.CommandEventNameCount)
     end
@@ -544,6 +583,7 @@ end
         end
 
         EventHandler.removeEvent(self.RewardEvent.Key)
+        EventHandler.removeEvent(self.RewardEventNext.Key)
         EventHandler.removeEvent(self.CommandEvent.Key)
         EventHandler.removeEvent(self.CommandEventNameCount.Key)
     end
