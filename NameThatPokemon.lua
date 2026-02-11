@@ -86,6 +86,20 @@ end
         return FileManager.getCustomFolderPath() .. stateFilename
     end
 
+    -- Ensure NameThatPokemon folder and JSON files exist so we never rely on or overwrite with repo placeholders on update.
+    local function ensureNtpFolderAndFiles()
+        local folder = FileManager.getCustomFolderPath() .. "NameThatPokemon"
+        if not FileManager.fileExists(folder) then
+            os.execute(('mkdir "%s"'):format(folder))
+        end
+        if not FileManager.fileExists(self.getFilepathForNames()) then
+            self.saveNamesToFile({})
+        end
+        if not FileManager.fileExists(self.getFilepathForState()) then
+            FileManager.encodeToJsonFile(self.getFilepathForState(), {})
+        end
+    end
+
     function self.saveCurrentNameState(uniqueIdparam, currentName, currentNamer)
         local filepath = self.getFilepathForState()
         if not filepath then return end
@@ -554,6 +568,8 @@ end
     function self.startup()
         self.DefaultNames = {}
         Resources.namesList = {}
+
+        ensureNtpFolderAndFiles()
 
         -- Sync run fingerprint so we don't false-trigger on first frame
         previousRunFingerprint = getRunFingerprint() or readNtpVars().uniqueId
