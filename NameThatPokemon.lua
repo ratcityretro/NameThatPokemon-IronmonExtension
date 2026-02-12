@@ -318,13 +318,10 @@ end
     local function isPlayingFRorE() return isPlayingFRLG() or isPlayingE() end
 
     -- namer: optional; when provided (e.g. from queue entry), save to state and write namer.txt
-    local function injectName(name, namer)
+    -- removeFromList: optional; if true, remove first entry from list (only when using name FROM list, not stored name)
+    local function injectName(name, namer, removeFromList)
         memory.usememorydomain("System Bus")
         Resources.namesList = Resources.namesList or {}
-        if #Resources.namesList == 0 then return end
-    
-        local entry = Resources.namesList[1]
-        if not entry or not entry.name then return end
     
         -- write the name into game memory
         local mapped = mapUTF8StringAndOutput(name)
@@ -346,9 +343,14 @@ end
             lastWrittenNamer = namer
         end
     
-        -- remove *one* time from the queue and save
-        table.remove(Resources.namesList, 1)
-        self.saveNamesToFile(Resources.namesList)
+        -- remove *one* time from the queue and save (only when using name FROM list)
+        if removeFromList and #Resources.namesList > 0 then
+            local entry = Resources.namesList[1]
+            if entry and entry.name then
+                table.remove(Resources.namesList, 1)
+                self.saveNamesToFile(Resources.namesList)
+            end
+        end
     end
     
 
@@ -382,12 +384,19 @@ end
             return
         end
 
-        -- Inject name once per seed (pass namer so state + namer.txt get it)
+        -- Inject name once per seed
         if leadPokemon.nickname and not nameBurned then
-            local entry = Resources.namesList[1]
-            if entry and entry.name then
-                injectName(entry.name, entry.namer)
+            -- Check for stored name first (same seed, different pokemon) - don't burn from list
+            if ntpVars.currentName and ntpVars.currentName ~= "" then
+                injectName(ntpVars.currentName, ntpVars.currentNamer, false)
                 nameBurned = true
+            -- Otherwise use name from list (new seed or no stored name) - burn from list
+            elseif #Resources.namesList > 0 then
+                local entry = Resources.namesList[1]
+                if entry and entry.name then
+                    injectName(entry.name, entry.namer, true)
+                    nameBurned = true
+                end
             end
             return
         end
@@ -395,7 +404,7 @@ end
         -- Re-inject saved name if lead Pokémon name has changed (no namer param; state keeps currentNamer)
         if ntpVars.currentName and leadPokemon.nickname ~= ntpVars.currentName then
             if ntpVars.currentName and ntpVars.currentName ~= "" then
-                injectName(ntpVars.currentName)
+                injectName(ntpVars.currentName, nil, false)
             end
         end
     end
